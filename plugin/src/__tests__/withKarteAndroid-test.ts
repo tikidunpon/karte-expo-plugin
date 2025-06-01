@@ -1,4 +1,5 @@
 import fs from "fs";
+import { withAndroidManifest, AndroidConfig } from "@expo/config-plugins";
 
 import { withKarteAndroid } from "../withKarteAndroid";
 
@@ -19,6 +20,7 @@ jest.mock("path", () => {
 });
 
 jest.mock("@expo/config-plugins", () => {
+  const mainApp = {};
   return {
     ...(jest.requireActual("@expo/config-plugins") as object),
     withDangerousMod: jest.fn().mockImplementation((config, [_, callback]) =>
@@ -26,9 +28,22 @@ jest.mock("@expo/config-plugins", () => {
         ...config,
         modRequest: {
           projectRoot: "projectRoot",
+          platformProjectRoot: "platformRoot",
         },
       })
     ),
+    withAndroidManifest: jest.fn().mockImplementation((config, callback) =>
+      callback({
+        ...config,
+        modResults: {},
+      })
+    ),
+    AndroidConfig: {
+      Manifest: {
+        getMainApplicationOrThrow: jest.fn(() => mainApp),
+        addMetaDataItemToMainApplication: jest.fn(),
+      },
+    },
     withGradleProperties: jest.fn(),
   };
 });
@@ -67,5 +82,23 @@ describe(withKarteAndroid, () => {
         karteXml: "karte.xml",
       })
     ).toThrow(/karte.xml doesn't exist/);
+  });
+
+  it("should add metadata when isEdgeToEdgeEnabled is defined", () => {
+    jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    withKarteAndroid(exp, {
+      karteInfoPlist: "",
+      karteXml: "karte.xml",
+      isEdgeToEdgeEnabled: true,
+    });
+
+    const { Manifest } = AndroidConfig;
+    expect(Manifest.getMainApplicationOrThrow).toHaveBeenCalled();
+    expect(Manifest.addMetaDataItemToMainApplication).toHaveBeenCalledWith(
+      expect.any(Object),
+      "KARTE_EDGE_TO_EDGE_ENABLED",
+      "true"
+    );
+    expect(withAndroidManifest).toHaveBeenCalled();
   });
 });
