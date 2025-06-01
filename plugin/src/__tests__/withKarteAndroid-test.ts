@@ -51,6 +51,9 @@ jest.mock("@expo/config-plugins", () => {
 const exp = { name: "foo", slug: "bar" };
 
 describe(withKarteAndroid, () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
   it("should not throw if xml path is set", () => {
     jest.spyOn(fs, "existsSync").mockImplementation((_: any) => {
       return true;
@@ -100,5 +103,38 @@ describe(withKarteAndroid, () => {
       "true"
     );
     expect(withAndroidManifest).toHaveBeenCalled();
+  });
+
+  it("should add metadata when isEdgeToEdgeEnabled is false", () => {
+    jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    withKarteAndroid(exp, {
+      karteInfoPlist: "",
+      karteXml: "karte.xml",
+      isEdgeToEdgeEnabled: false,
+    });
+
+    const { Manifest } = AndroidConfig;
+    expect(Manifest.getMainApplicationOrThrow).toHaveBeenCalled();
+    expect(Manifest.addMetaDataItemToMainApplication).toHaveBeenCalledWith(
+      expect.any(Object),
+      "KARTE_EDGE_TO_EDGE_ENABLED",
+      "false"
+    );
+    expect(withAndroidManifest).toHaveBeenCalled();
+  });
+
+  it("should not add metadata when isEdgeToEdgeEnabled is undefined", () => {
+    jest.spyOn(fs, "existsSync").mockReturnValue(true);
+    withKarteAndroid(exp, {
+      karteInfoPlist: "",
+      karteXml: "karte.xml",
+    });
+
+    const { Manifest } = AndroidConfig;
+    expect(Manifest.getMainApplicationOrThrow).not.toHaveBeenCalled();
+    expect(
+      Manifest.addMetaDataItemToMainApplication
+    ).not.toHaveBeenCalled();
+    expect(withAndroidManifest).not.toHaveBeenCalled();
   });
 });
